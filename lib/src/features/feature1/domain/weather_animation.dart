@@ -24,34 +24,6 @@ class SunConfig {
   });
 }
 
-class WindConfig {
-  final double width;
-  final double y;
-  final double windGap;
-  final double blurSigma;
-  final Color color;
-  final double slideXStart;
-  final double slideXEnd;
-  final int pauseStartMill;
-  final int pauseEndMill;
-  final int slideDurMill;
-  final BlurStyle blurStyle;
-
-  WindConfig({
-    required this.width,
-    required this.y,
-    required this.windGap,
-    required this.blurSigma,
-    required this.color,
-    required this.slideXStart,
-    required this.slideXEnd,
-    required this.pauseStartMill,
-    required this.pauseEndMill,
-    required this.slideDurMill,
-    required this.blurStyle,
-  });
-}
-
 class CloudConfig {
   final double size;
   final Color color;
@@ -84,7 +56,7 @@ class CloudConfig {
   });
 }
 
-class WrapperScene extends StatelessWidget {
+class WrapperScene extends StatefulWidget {
   final Size sizeCanvas;
   final bool isLeftCornerGradient;
   final List<Color> colors;
@@ -99,68 +71,158 @@ class WrapperScene extends StatelessWidget {
   });
 
   @override
+  _WrapperSceneState createState() => _WrapperSceneState();
+}
+
+class _WrapperSceneState extends State<WrapperScene> {
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: sizeCanvas.width,
-      height: sizeCanvas.height,
-      decoration: BoxDecoration(
-        gradient: isLeftCornerGradient
-            ? LinearGradient(
-                colors: colors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-      ),
-      child: Stack(
-        children: children,
+    return Scaffold(
+      body: Center(
+        child: Container(
+          width: widget.sizeCanvas.width,
+          height: widget.sizeCanvas.height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: widget.isLeftCornerGradient
+                  ? Alignment.topLeft
+                  : Alignment.topRight,
+              end: Alignment.bottomCenter,
+              colors: widget.colors,
+            ),
+          ),
+          child: Stack(
+            children: widget.children,
+          ),
+        ),
       ),
     );
   }
 }
 
-class WeatherAnimation extends StatelessWidget {
+class WeatherAnimation extends StatefulWidget {
   const WeatherAnimation({super.key});
 
   @override
+  _WeatherAnimationState createState() => _WeatherAnimationState();
+}
+
+class _WeatherAnimationState extends State<WeatherAnimation>
+    with TickerProviderStateMixin {
+  late AnimationController _sunController;
+  late Animation<double> _sunAnimation;
+
+  late AnimationController _cloudController;
+  late Animation<double> _cloudScaleAnimation;
+  late Animation<double> _cloudSlideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Sonnenanimation
+    _sunController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _sunAnimation = Tween<double>(begin: 80, end: 100).animate(
+      CurvedAnimation(parent: _sunController, curve: Curves.easeInOut),
+    );
+
+    // Wolkenanimation
+    _cloudController = AnimationController(
+      duration: const Duration(seconds: 5),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _cloudScaleAnimation = Tween<double>(begin: 0.8, end: 0.7).animate(
+      CurvedAnimation(parent: _cloudController, curve: Curves.easeInOut),
+    );
+
+    _cloudSlideAnimation = Tween<double>(begin: -50, end: 50).animate(
+      CurvedAnimation(parent: _cloudController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _sunController.dispose();
+    _cloudController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return WrapperScene(
-      sizeCanvas: const Size(350, 540),
-      isLeftCornerGradient: true,
-      colors: const [
-        Color(0xff90caf9),
-        Color(0xef4fc3f7),
-      ],
-      children: [
-        // Platzhalter für Sonne
-        Container(
-          alignment: Alignment.topRight,
-          child: const Icon(Icons.wb_sunny, size: 100, color: Colors.yellow),
-        ),
-        // Platzhalter für Wind
-        Positioned(
-          left: 0,
-          top: 200,
-          child: Container(
-            width: 5,
-            height: 200,
-            color: Colors.blueGrey,
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.fromARGB(255, 124, 189, 242),
+              Color.fromARGB(238, 169, 216, 238),
+            ],
           ),
         ),
-        // Platzhalter für Wolken
-        Positioned(
-          left: 20,
-          top: 35,
-          child:
-              Icon(Icons.cloud, size: 250, color: Colors.blue.withOpacity(0.5)),
+        child: Stack(
+          children: [
+            // Wolkenanimation
+            AnimatedBuilder(
+              animation: _cloudController,
+              builder: (context, child) {
+                return Stack(
+                  children: [
+                    Positioned(
+                      left: 20 + _cloudSlideAnimation.value,
+                      top: 100,
+                      child: Transform.scale(
+                        scale: _cloudScaleAnimation.value,
+                        child: Icon(
+                          Icons.cloud,
+                          size: 220,
+                          color: Colors.blue.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 20 + _cloudSlideAnimation.value,
+                      top: 150,
+                      child: Transform.scale(
+                        scale: _cloudScaleAnimation.value,
+                        child: Icon(
+                          Icons.cloud,
+                          size: 160,
+                          color: Color.fromARGB(255, 75, 127, 169)
+                              .withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            // Sonnenanimation
+            AnimatedBuilder(
+              animation: _sunAnimation,
+              builder: (context, child) {
+                return Positioned(
+                  top: 20,
+                  right: 20,
+                  child: Icon(
+                    Icons.wb_sunny,
+                    size: _sunAnimation.value,
+                    color: Colors.yellow,
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-        Positioned(
-          left: 140,
-          top: 130,
-          child:
-              Icon(Icons.cloud, size: 160, color: Colors.blue.withOpacity(0.5)),
-        ),
-      ],
+      ),
     );
   }
 }
